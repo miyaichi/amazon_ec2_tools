@@ -1,0 +1,21 @@
+#!/bin/sh
+
+date=`date '+%Y%m'`
+log=/var/log/`basename $0`.log
+exec >>${log} 2>&1
+
+setenv=`dirname $0`/setenv.sh
+if [ ! -r $setenv ]; then
+    echo "$setenv not found"
+    exit 1
+fi
+source $setenv
+
+date
+
+volume=`dirname $0`/volume
+if [ ! -r $volume ]; then
+    echo "$volume not found"
+fi
+
+ec2-create-snapshot `$volume`

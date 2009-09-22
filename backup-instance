@@ -1,0 +1,41 @@
+#!/bin/sh
+
+date=`date '+%Y%m'`
+log=/var/log/`basename $0`.log
+exec >>${log} 2>&1
+
+setenv=`dirname $0`/setenv.sh
+if [ ! -r $setenv ]; then
+    echo "$setenv not found"
+    exit 1
+fi
+source $setenv
+
+image=/mnt/image
+
+date=`date +%Y%m%d`
+bucket=`hostname`"-$date"
+
+if [ -d $image ]; then
+  rm -rf $image
+fi
+mkdir $image
+
+cd $image
+
+date
+
+ec2-bundle-vol \
+    -d $image \
+    -r i386 \
+    -k $EC2_PRIVATE_KEY \
+    -c $EC2_CERT \
+    -u $EC2_ACCOUNT_NUMBER
+
+ec2-upload-bundle \
+    --bucket $bucket \
+    --manifest image.manifest.xml \
+    --access-key $EC2_ACCESS_KEY \
+    --secret-key $EC2_SECRET_KEY
+
+ec2-register $bucket/image.manifest.xml 
