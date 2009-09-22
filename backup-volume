@@ -11,11 +11,23 @@ if [ ! -r $setenv ]; then
 fi
 source $setenv
 
-date
+echo start `date`
 
 volume=`dirname $0`/volume
 if [ ! -r $volume ]; then
     echo "$volume not found"
 fi
 
+echo "create snapshot"
 ec2-create-snapshot `$volume`
+
+# remove old(14 days ago) snapshot
+date=`date --date '14 days ago' '+%Y-%m-%d'`
+ec2-describe-snapshots | grep `$volume` | grep $date | \
+    while read t1 snapshot t2 t3 timestamp t4; do
+
+    echo "delete snapshot : $snapshot $timestamp"
+    ec2-delete-snapshot $snapshot
+done
+
+echo done `date`

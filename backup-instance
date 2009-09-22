@@ -11,26 +11,33 @@ if [ ! -r $setenv ]; then
 fi
 source $setenv
 
-image=/mnt/image
-
 date=`date +%Y%m%d`
 bucket=`hostname`"-$date"
 
+image=/mnt/image
 if [ -d $image ]; then
   rm -rf $image
 fi
 mkdir $image
-
 cd $image
 
-date
+echo start `date`
+
+# exclude attached volume (/dev/sdf)
+attached_volume=`mount | grep "/dev/sdf" | gawk '{print $3;}'`
+if [ "$attached_volume" != "" ]; then
+    exclude="--exclude $attached_volume"
+else
+    exclude=""
+fi
 
 ec2-bundle-vol \
-    -d $image \
-    -r i386 \
-    -k $EC2_PRIVATE_KEY \
-    -c $EC2_CERT \
-    -u $EC2_ACCOUNT_NUMBER
+    --destination $image \
+    --arch i386 \
+    --privatekey $EC2_PRIVATE_KEY \
+    --cert $EC2_CERT \
+    --user $EC2_ACCOUNT_NUMBER \
+    $exclude
 
 ec2-upload-bundle \
     --bucket $bucket \
@@ -39,3 +46,19 @@ ec2-upload-bundle \
     --secret-key $EC2_SECRET_KEY
 
 ec2-register $bucket/image.manifest.xml 
+
+# deregister/remove old(14 days ago) image/bucket
+date=`date --date '14 days ago' '+%Y%m%d'`
+bucket=`hostname`"-$date"
+ec2-describe-images | grep $bucket | \
+    while read t1 image t2 t3 t4 t5 t6 t7; do
+
+    echo "dereister image : $image"
+    ec2-deregister $image
+
+    echo "remove bucket: $bucket"
+    s3cmd del s3://$bucket/*
+    s3cmd rb s3://$bucket
+done
+
+echo done `date`
