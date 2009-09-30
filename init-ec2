@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# Init EC2 info
+#
+# chkconfig: - 98 02
+# description: Init EC2 info
+#
+# processname: set-ec2-info
+
+source /etc/rc.d/init.d/functions
+
+### Default variables
+
+[ -x /usr/local/scripts/set-ec2-info ] || exit 1
+
+RETVAL=0
+prog="/usr/local/scripts/set-ec2-info"
+desc="Init EC2 info"
+
+start() {
+	echo $"Starting $desc: "
+	$prog
+}
+
+case "$1" in
+  start)
+	start
+	;;
+  reload)
+	start
+	;;
+  *)
+	echo $"Usage: $0 {start|reload}"
+	RETVAL=1
+esac
+
+exit $RETVAL

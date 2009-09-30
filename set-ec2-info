@@ -1,0 +1,60 @@
+#!/bin/sh
+
+api="http://169.254.169.254/latest/meta-data/"
+path=/usr/local/scripts
+
+setenv=`dirname $0`/setenv.sh
+if [ ! -r $setenv ]; then
+    echo "$setenv not found"
+    exit 1
+fi
+source $setenv
+
+update()
+{
+    key=$1
+    if [ "$key" == "" ]; then
+        return 1;
+    fi
+
+    value=`curl --fail --silent $api/$key`
+    if [ "$value" != "" ]; then
+        cat > $path/$key <<EOF
+#!/bin/sh
+echo $value
+EOF
+	chmod +x $path/$key
+        echo "$key : $path/$key updated."
+    else
+        rm $path/$key
+        echo "$key : api failed"
+    fi
+
+    return 0
+}
+
+echo "get metadata info"
+keys="ami-id ami-manifest-path hostname instance-id instance-type local-hostname local-ipv4 public-hostname public-ipv4"
+for key in $keys; do
+    update $key
+done
+
+echo "get volume info"
+instance=`/usr/local/scripts/instance-id`
+update=0
+ec2-describe-volumes \
+    | grep ATTACHMENT \
+    | grep attached \
+    | grep $instance \
+    | while read t1 volume instance t2 status t3; do
+        cat > $path/volume <<EOF
+#!/bin/sh
+echo $volume
+EOF
+        chmod +x $path/volume
+        echo "volume : $path/volume updated."
+        update=1
+done
+if [ $update -eq 0 ]; then
+    echo "no attached volume"
+fi
