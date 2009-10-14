@@ -4,6 +4,10 @@ export EC2_SECRET_KEY=<secret key>
 export EC2_PRIVATE_KEY=<private key file>
 export EC2_CERT=<cert file>
 
+export BUCKET=<buckt name>
+export ALERT=<alert mail address>
+export FROM=<aleert mail from address>
+
 export PATH=$PATH:/usr/local/bin
 export JAVA_HOME=/usr/java/jre1.6.0_16
 export PATH=$PATH:$JAVA_HOME/bin

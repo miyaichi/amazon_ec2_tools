@@ -1,9 +1,9 @@
 #!/bin/sh
 
 api="http://169.254.169.254/latest/meta-data/"
-path=/usr/local/scripts
+path=`dirname $0`
 
-setenv=`dirname $0`/setenv.sh
+setenv=$path/setenv.sh
 if [ ! -r $setenv ]; then
     echo "$setenv not found"
     exit 1
@@ -21,6 +21,10 @@ update()
     if [ "$value" != "" ]; then
         cat > $path/$key <<EOF
 #!/bin/sh
+# This is auto genete script.
+#
+# date: `date`
+# by:   $0
 echo $value
 EOF
 	chmod +x $path/$key
@@ -40,21 +44,24 @@ for key in $keys; do
 done
 
 echo "get volume info"
-instance=`/usr/local/scripts/instance-id`
-update=0
+instance=`$path/instance-id`
+if [ -f $path/volume ]; then
+    rm $path/volume
+fi
 ec2-describe-volumes \
     | grep ATTACHMENT \
     | grep attached \
     | grep $instance \
     | while read t1 volume instance t2 status t3; do
+if [ "$volume" != "" ]; then
         cat > $path/volume <<EOF
 #!/bin/sh
 echo $volume
 EOF
         chmod +x $path/volume
         echo "volume : $path/volume updated."
-        update=1
+fi
 done
-if [ $update -eq 0 ]; then
+if [ ! -f $path/volume ]; then
     echo "no attached volume"
 fi

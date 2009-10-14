@@ -12,8 +12,9 @@ fi
 source $setenv
 
 date=`date +%Y%m%d`
-bucket=`hostname`"-$date"
+bucket="$BUCKET"`hostname`"/$date"
 
+# clean up
 image=/mnt/image
 if [ -d $image ]; then
   rm -rf $image
@@ -23,33 +24,42 @@ cd $image
 
 echo start `date`
 
-# exclude attached volume (/dev/sdf)
-attached_volume=`mount | grep "/dev/sdf" | gawk '{print $3;}'`
+# exclude attached volume (/dev/sd[fgh])
+attached_volume=`mount | grep "/dev/sd[fgh]" | gawk '{print $3;}'`
 if [ "$attached_volume" != "" ]; then
     exclude="--exclude $attached_volume"
 else
     exclude=""
 fi
 
+retval=0
+
 ec2-bundle-vol \
     --destination $image \
     --arch i386 \
+    --debug \
     --privatekey $EC2_PRIVATE_KEY \
     --cert $EC2_CERT \
     --user $EC2_ACCOUNT_NUMBER \
-    $exclude
+    $exclude \
+    || { echo "ec2-bundle-vol failed"; retval=1; }
+date
 
 ec2-upload-bundle \
     --bucket $bucket \
     --manifest image.manifest.xml \
     --access-key $EC2_ACCESS_KEY \
-    --secret-key $EC2_SECRET_KEY
+    --secret-key $EC2_SECRET_KEY \
+    || { echo "ec2-update-bundle failed"; retval=1; }
+date
 
-ec2-register $bucket/image.manifest.xml 
+ec2-register $bucket/image.manifest.xml \
+    || { echo "ec2-revister failed"; retval=1; }
+date
 
 # deregister/remove old(14 days ago) image/bucket
 date=`date --date '14 days ago' '+%Y%m%d'`
-bucket=`hostname`"-$date"
+bucket="$BUCKET"`hostname`"/$date"
 ec2-describe-images | grep $bucket | \
     while read t1 image t2 t3 t4 t5 t6 t7; do
 
@@ -57,8 +67,21 @@ ec2-describe-images | grep $bucket | \
     ec2-deregister $image
 
     echo "remove bucket: $bucket"
-    s3cmd del s3://$bucket/*
-    s3cmd rb s3://$bucket
+    s3cmd -r del s3://$bucket/
+    date
 done
+
+if [ $retval -ne 0 ]; then
+    echo `basename $0` " failed."
+    cat << EOF | sendmail -f $FROM -t $ALERT
+Subject: "`basename $0` -- alert"
+
+echo `basename $0` " failed."
+
+       Date:        `date`
+       Host:        `hostname`
+       Description: In order to slove the problem please check $log
+EOF
+fi
 
 echo done `date`
