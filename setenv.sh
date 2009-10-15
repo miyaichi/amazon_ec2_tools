@@ -8,7 +8,7 @@ export BUCKET=<buckt name>
 export ALERT=<alert mail address>
 export FROM=<aleert mail from address>
 
-export PATH=$PATH:/usr/local/bin
+export PATH=$PATH:/usr/local/bin:/usr/sbin
 export JAVA_HOME=/usr/java/jre1.6.0_16
 export PATH=$PATH:$JAVA_HOME/bin
 export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar
