@@ -1,5 +1,6 @@
 #!/bin/sh
 
+export LANG=C
 date=`date '+%Y%m'`
 log=/var/log/`basename $0`.log
 exec >>${log} 2>&1
@@ -18,8 +19,11 @@ if [ ! -r $volume ]; then
     echo "$volume not found"
 fi
 
+retval=0
+
 echo "create snapshot"
-ec2-create-snapshot `$volume`
+ec2-create-snapshot `$volume` \
+    || { echo "ec2-create-snapshot failed"; retval=1; }
 
 # remove old(14 days ago) snapshot
 date=`date --date '14 days ago' '+%Y-%m-%d'`
@@ -29,5 +33,19 @@ ec2-describe-snapshots | grep `$volume` | grep $date | \
     echo "delete snapshot : $snapshot $timestamp"
     ec2-delete-snapshot $snapshot
 done
+
+if [ $retval -ne 0 ]; then
+    echo `basename $0` " failed."
+    cat << EOF | sendmail -i -f$FROM $ALERT
+To: $ALERT
+Subject: `basename $0` -- alert
+
+`basename $0`  failed.
+
+       Date:        `date`
+       Host:        `hostname`
+       Description: In order to slove the problem please check $log
+EOF
+fi
 
 echo done `date`

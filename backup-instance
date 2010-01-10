@@ -1,5 +1,6 @@
 #!/bin/sh
 
+export LANG=C
 date=`date '+%Y%m'`
 log=/var/log/`basename $0`.log
 exec >>${log} 2>&1
@@ -34,6 +35,7 @@ fi
 
 retval=0
 
+# bundle volume
 ec2-bundle-vol \
     --destination $image \
     --arch i386 \
@@ -45,14 +47,20 @@ ec2-bundle-vol \
     || { echo "ec2-bundle-vol failed"; retval=1; }
 date
 
-ec2-upload-bundle \
-    --bucket $bucket \
-    --manifest image.manifest.xml \
-    --access-key $EC2_ACCESS_KEY \
-    --secret-key $EC2_SECRET_KEY \
-    || { echo "ec2-update-bundle failed"; retval=1; }
+# upload bundle (retry 3 times)
+for retry in 1 2 3; do
+    ec2-upload-bundle \
+        --bucket $bucket \
+        --manifest image.manifest.xml \
+        --access-key $EC2_ACCESS_KEY \
+        --secret-key $EC2_SECRET_KEY \
+        || { echo "ec2-update-bundle failed"; retval=1; continue; }
+    retval=0
+    break;
+done
 date
 
+# register image
 ec2-register $bucket/image.manifest.xml \
     || { echo "ec2-revister failed"; retval=1; }
 date
@@ -73,10 +81,11 @@ done
 
 if [ $retval -ne 0 ]; then
     echo `basename $0` " failed."
-    cat << EOF | sendmail -f $FROM -t $ALERT
-Subject: "`basename $0` -- alert"
+    cat << EOF | sendmail -i -f$FROM $ALERT
+To: $ALERT
+Subject: `basename $0` -- alert
 
-echo `basename $0` " failed."
+`basename $0`  failed.
 
        Date:        `date`
        Host:        `hostname`

@@ -56,6 +56,10 @@ ec2-describe-volumes \
 if [ "$volume" != "" ]; then
         cat > $path/volume <<EOF
 #!/bin/sh
+# This is auto genete script.
+#
+# date: `date`
+# by:   $0
 echo $volume
 EOF
         chmod +x $path/volume
